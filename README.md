@@ -1,89 +1,88 @@
 # 不動産資料 翻訳ツール
 
-PowerPoint (.pptx) / PDF の資料を、レイアウトを維持したまま日本語 ⇄ 英語 ⇄ 中国語に翻訳する社内ツール。
-翻訳エンジンに **LibreTranslate** をセルフホストしているため、**完全無料・無制限**で利用できます（APIキー・クレカ登録不要）。
+PowerPoint (.pptx) / PDF の資料を、レイアウトを維持したまま日本語 ⇄ 英語 ⇄ 中国語に翻訳する Streamlit アプリです。
 
 ## 特徴
 
-- **レイアウト・画像は完全維持**：テキスト部分のみ置換。図版や写真は一切触りません
-- **不動産用語に特化**：「利回り」「坪単価」「NOI」など業界用語は用語集で固定訳に
+- **レイアウト・画像は完全維持**：テキスト部分のみ置換
+- **不動産用語に特化**：「利回り」「坪単価」「NOI」などは用語集で固定訳
 - **文字溢れ対策**：翻訳後に文字が伸びた場合、自動でフォントサイズを縮小
-- **完全オフライン動作**：社内ネットワーク内で完結、外部にデータを送信しません
+- **2種類の翻訳エンジン**：Google翻訳（高品質・要ネット）/ LibreTranslate（オフライン・機密OK）
 
-## 動作要件
+## 翻訳エンジン
 
-| 項目 | 必要スペック |
-|------|-------------|
-| OS | Windows 10/11、macOS、Linux |
-| RAM | **空き 2GB 以上** |
-| ディスク | 空き 3GB 以上 |
-| ソフトウェア | **Docker Desktop**（Windows/Mac）または Docker Engine（Linux） |
+環境変数 `TRANSLATION_ENGINE` で切替します。
 
-※ Docker Desktop のインストール: https://www.docker.com/products/docker-desktop/
+| エンジン | 設定値 | 特徴 |
+|---|---|---|
+| Google翻訳 | `google`（デフォルト）| 品質◎・要インターネット・クラウドデプロイ向き |
+| LibreTranslate | `libretranslate` | 完全オフライン・自PC完結・機密資料向き |
 
-## セットアップ
+---
 
-### 1. このフォルダを動かしたいPCにコピー
+## 使い方①：Streamlit Community Cloud にデプロイ（おすすめ・共有用）
 
-USBメモリでもGitHubでも、どんな方法でも構いません。
+**誰でもブラウザからURLを開くだけで使える**公開URL方式です。
 
-### 2. Docker Desktop を起動
+### 手順
 
-初回起動時は Windows Subsystem for Linux (WSL) のセットアップが走ることがあります。Docker Desktop がタスクトレイで「Docker Desktop is running」と表示されればOK。
+1. **GitHubに非公開リポジトリを作成**
+   - https://github.com/new → Private を選択
+   - このフォルダを push
 
-### 3. アプリを起動
+2. **Streamlit Community Cloudでデプロイ**
+   - https://share.streamlit.io/ にアクセス（GitHubでログイン）
+   - `New app` → 作成したリポジトリを選択
+   - Main file path: `streamlit_app.py`
+   - `Deploy` をクリック
 
-フォルダ内で以下を実行：
+3. **数分でデプロイ完了** → `https://<app-name>.streamlit.app/` にアクセス
 
-```bash
-docker compose up -d
-```
+※ デフォルトでGoogle翻訳エンジンが使われるため、追加設定は不要です。
 
-- **初回のみ**: LibreTranslate のイメージ取得 + 言語モデル（ja/en/zh）のダウンロードで5〜10分かかります
-- 2回目以降は10秒ほどで起動します
+---
 
-### 4. ブラウザでアクセス
+## 使い方②：ローカルPCで実行
 
-http://localhost:8000
-
-**同じLAN内の別PCやスマホからもアクセス可能**です：  
-サーバPCのIPアドレス（例: `192.168.1.100`）を確認して `http://192.168.1.100:8000` を開いてください。
-
-### 停止・再起動
+### 2-A. Google翻訳モード（簡単・要ネット）
 
 ```bash
-# 停止
-docker compose down
-
-# 再起動
-docker compose up -d
-
-# ログを見る
-docker compose logs -f
+pip install -r requirements.txt
+streamlit run streamlit_app.py
 ```
 
-## 使い方
+ブラウザで http://localhost:8501 が開きます。
 
-1. 翻訳元・翻訳先の言語を選択（日本語 / 英語 / 中国語）
-2. `.pptx` または `.pdf` ファイルをドラッグ&ドロップ（最大20MB）
-3. 「翻訳を実行」をクリック
-4. 翻訳後のファイルが自動ダウンロードされる
+### 2-B. LibreTranslateモード（オフライン）
+
+```bash
+# 依存インストール
+pip install -r requirements.txt
+pip install libretranslate
+
+# ターミナル①: LibreTranslate起動（初回のみモデルDL 5〜10分）
+libretranslate --load-only ja,en,zh
+
+# ターミナル②: Streamlit起動
+#   事前に .env を作成し TRANSLATION_ENGINE=libretranslate を設定
+streamlit run streamlit_app.py
+```
+
+`.env.example` をコピーして `.env` を作成し、`TRANSLATION_ENGINE=libretranslate` に書き換えてください。
+
+---
 
 ## ファイル構成
 
 ```
 翻訳アプリ/
-├── docker-compose.yml   # LibreTranslate + FastAPI のオーケストレーション
-├── Dockerfile           # FastAPIアプリのコンテナ化
-├── main.py              # FastAPI エンドポイント
-├── translator.py        # LibreTranslate HTTP クライアント + 用語集保護
+├── streamlit_app.py     # Streamlit UI（エントリポイント）
+├── translator.py        # 翻訳エンジン共通インターフェース
 ├── pptx_handler.py      # PowerPoint 翻訳処理
 ├── pdf_handler.py       # PDF 翻訳処理
 ├── glossary.py          # 不動産用語集（日英・日中・英日）
 ├── requirements.txt     # Python依存パッケージ
-├── static/
-│   └── index.html       # フロントUI
-├── .env.example
+├── .env.example         # 環境変数のサンプル
 └── README.md
 ```
 
@@ -99,31 +98,12 @@ REAL_ESTATE_JA_EN = {
 }
 ```
 
-保存後、`docker compose restart app` で反映されます。
-
-翻訳時には、原文に含まれる用語を `__GL_0__` のような固有トークンに置き換えてからLibreTranslateに送り、翻訳後にトークンを目標言語の固定訳へ戻す仕組みです。これにより**翻訳エンジンの気まぐれな訳揺れを完全に排除**できます。
+翻訳時には、原文に含まれる用語を `__GL_0__` のような固有トークンに置き換えてから翻訳エンジンに送り、翻訳後にトークンを目標言語の固定訳へ戻す仕組みです。翻訳エンジンの訳揺れを排除できます。
 
 ## 既知の制限
 
-- **翻訳品質**: DeepL や Google Translate より1ランク劣ります。特に日本語の敬語・長文の文脈理解は苦手。最終的には**人による校正が前提**の用途向けです
+- **Google翻訳**: 短時間に大量リクエストするとレート制限がかかる場合あり
+- **機密資料**: Google翻訳モードでは翻訳対象テキストがGoogleのサーバに送信されます。機密資料は LibreTranslate モード（ローカル）で処理してください
 - **PDF**: スキャン画像化されたPDF（OCR必要）は翻訳できません。ネイティブPDFのみ対応
 - **PowerPoint**: グラフ（Chart）内のテキストは翻訳対象外
-- **ja ⇔ zh**: LibreTranslate には直接モデルがないため、**English を経由するpivot翻訳**になります（精度がさらに落ちる可能性あり）
-- **初回起動**: 言語モデルのダウンロードで5〜10分程度かかります
-
-## トラブルシューティング
-
-### ポート 8000 / 5000 が既に使われている
-`docker-compose.yml` の `ports:` を `"8080:8000"` のように変更してください。
-
-### メモリ不足でコンテナが落ちる
-Docker Desktop の設定でメモリ割り当てを4GB以上に増やしてください（Settings → Resources）。
-
-### 翻訳が極端に遅い・タイムアウトする
-サーバPCのCPU使用率を確認。古いPCの場合は1ファイルに数分かかることがあります。CPUが弱い場合は、1度に翻訳するスライド数を減らしてください。
-
-### LibreTranslate が起動しない
-初回のモデルダウンロードに失敗している可能性があります。ログで確認：
-```bash
-docker compose logs libretranslate
-```
+- **ファイルサイズ**: 最大 30MB（Streamlit Cloudの無料枠メモリ1GBに合わせて制限）
