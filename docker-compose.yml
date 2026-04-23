@@ -1,0 +1,41 @@
+services:
+  # 翻訳エンジン本体（LibreTranslate）
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: translator-engine
+    restart: unless-stopped
+    environment:
+      # 日本語・英語・中国語のモデルのみ読み込む（メモリ節約）
+      - LT_LOAD_ONLY=ja,en,zh
+      # 初回起動時の言語モデル自動ダウンロード
+      - LT_UPDATE_MODELS=true
+      # 内部利用なのでAPIキーは不要（外部公開する場合は有効化推奨）
+      - LT_DISABLE_WEB_UI=false
+    ports:
+      - "5000:5000"  # デバッグ用（直接LTに接続したい場合）
+    volumes:
+      - libretranslate-data:/home/libretranslate/.local/share
+      - libretranslate-cache:/home/libretranslate/.cache
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/languages').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s  # 初回モデルダウンロードは5分程度かかる
+
+  # フロントエンド（FastAPI + UI）
+  app:
+    build: .
+    container_name: translator-app
+    restart: unless-stopped
+    environment:
+      - LIBRETRANSLATE_URL=http://libretranslate:5000
+    ports:
+      - "8000:8000"
+    depends_on:
+      libretranslate:
+        condition: service_healthy
+
+volumes:
+  libretranslate-data:
+  libretranslate-cache:

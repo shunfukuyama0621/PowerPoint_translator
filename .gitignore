@@ -1,0 +1,28 @@
+# 環境変数
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# テスト用の一時ファイル
+*.pptx
+*.pdf
+!sample/*.pptx
+!sample/*.pdf
